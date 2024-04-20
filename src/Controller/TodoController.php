@@ -7,10 +7,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
 
-#[Route('/blogs')]
+#[Route('/todos')]
 class TodoController extends AbstractController{
 
-const POSTS = [
+const TODOS = [
     [
         'id' => 1,
         'slug' => 'hello-world',
@@ -32,34 +32,34 @@ const POSTS = [
 ];
 
 
-    #[Route( name: 'app_blog_list' , path: '/' )]
+    #[Route( name: 'app_todo_list' , path: '/' )]
     public function index(): JsonResponse   {
 
-        $resourceIds = array_map( fn($post) => $this->generateUrl('app_blog_by_id' , ['id' => $post['id']] ) , SELF::POSTS );
-        $resourceSlugs = array_map( fn($post) => $this->generateUrl('app_blog_by_slug' , ['slug' => $post['slug']] ), SELF::POSTS );
+        $resourceIds = array_map( fn($post) => $this->generateUrl('app_todo_by_id' , ['id' => $post['id']] ) , SELF::TODOS );
+        $resourceSlugs = array_map( fn($post) => $this->generateUrl('app_todo_by_slug' , ['slug' => $post['slug']] ), SELF::TODOS );
         
         return $this->json([
             'message' => 'Welcome to your new controller! he5a',
-            'blogs_ids' => $resourceIds,
-            'blogs_slugs' => $resourceSlugs,
+            'todos_ids' => $resourceIds,
+            'todos_slugs' => $resourceSlugs,
         ]);
     } 
 
-    #[Route('/{id}', name: 'app_blog_by_id')]
-    public function blogById(): JsonResponse
+    #[Route('/{id}', name: 'app_todo_by_id')]
+    public function todoById(): JsonResponse
     {
         return $this->json([
             'message' => 'Welcome to your new controller!',
-            'path' => 'src/Controller/BlogController.php',
+            'path' => 'src/Controller/TodoController.php',
         ]);
     }
 
-    #[Route('/{slug}', name:'app_blog_by_slug')]
-    public function blogBySlug(): JsonResponse
+    #[Route('/{slug}', name:'app_todo_by_slug')]
+    public function todoBySlug(): JsonResponse
     {
         return $this->json([
             'message' => 'Welcome to your new controller!',
-            'path' => 'src/Controller/BlogController.php',
+            'path' => 'src/Controller/TodoController.php',
         ]);
     }
 
