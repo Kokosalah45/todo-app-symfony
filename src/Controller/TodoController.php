@@ -2,65 +2,194 @@
 
 namespace App\Controller;
 
+use App\Entity\Todo;
+use App\Repository\TodoRepository;
+use App\Repository\UserRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
+use Symfony\Component\Serializer\SerializerInterface;
+
+class TodoController extends AbstractController
+{
+    private TodoRepository $todoRepository;
+
+    private UserRepository $userRepo;
+    private SerializerInterface $serializer;
+    private EntityManagerInterface $entityManager;
 
 
-#[Route('/todos')]
-class TodoController extends AbstractController{
+    function __construct(TodoRepository $todoRepo, UserRepository $userRepo, SerializerInterface $serializer, EntityManagerInterface $entityManager)
+    {
+        $this->todoRepository = $todoRepo;
+        $this->userRepo = $userRepo;
+        $this->serializer = $serializer;
+        $this->entityManager = $entityManager;
+    }
 
-const TODOS = [
-    [
-        'id' => 1,
-        'slug' => 'hello-world',
-        'title' => 'Hello World',
-        'published' => true,
-    ],
-    [
-        'id' => 2,
-        'slug' => 'another-post',
-        'title' => 'This is another post',
-        'published' => false,
-    ],
-    [
-        'id' => 3,
-        'slug' => 'last-post',
-        'title' => 'This is the last post',
-        'published' => true,
-    ],  
-];
+    #[Route('/todos', name: 'app_todo_list', methods: 'GET')]
+
+    public function listTodos(
+        Request $req,
+        #[MapQueryParameter] ?int $page = 1,
+        #[MapQueryParameter] ?int $size = 20
+    ): JsonResponse {
 
 
-    #[Route( name: 'app_todo_list' , path: '/' )]
-    public function index(): JsonResponse   {
+        $userId = $req->cookies->get('user_id');
+        // $offset = $size * $page;
 
-        $resourceIds = array_map( fn($post) => $this->generateUrl('app_todo_by_id' , ['id' => $post['id']] ) , SELF::TODOS );
-        $resourceSlugs = array_map( fn($post) => $this->generateUrl('app_todo_by_slug' , ['slug' => $post['slug']] ), SELF::TODOS );
+        if (empty($userId)) {
+            return $this->json([
+                'message' => 'No todos found'
+            ], 404);
+        }
+
+        $todos = $this->todoRepository->listOwnTodos($userId);
+
+        $response = [
+            'data' => $todos,
+            'page' => $page,
+            'limit' => $size
+        ];
+        return $this->json($response, 200, [], ['groups' => 'user-todos']);
+    }
+
+
+
+    #[Route('/todos', name: 'app_todo_add', methods: 'POST' )]
+    public function addTodo(Request $request): JsonResponse
+    {
+        $userId = $request->cookies->get('user_id');
+        $todoBody = $request->getContent();
+
+        if (empty($userId)) {
+            return $this->json([
+                'message' => 'No todos found'
+            ], 404);
+        }
+
+        $todo = new Todo();
+        $user = $this->userRepo->find($userId);
+
+        if (!$user) {
+            return $this->json([
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        $todo->setAssignee($user);
+
+        $this->serializer->deserialize(
+            $todoBody,
+            Todo::class,
+            'json',
+            [AbstractNormalizer::OBJECT_TO_POPULATE => $todo]
+
+        );
+
+        $this->entityManager->persist($todo);
+        $this->entityManager->flush();
+
+        if (!$todo) {
+            return $this->json([
+                'message' => 'Todo not found'
+            ], 404);
+        }
+        return $this->json($todo, 200, [], ['groups' => 'user-todos']);
+    }
+
+    #[Route('/todos/{id}', name: 'app_todo_show', methods: ['GET'])]
+    public function getTodoByID(int $id, Request $request): JsonResponse
+    {
+        $userId = $request->cookies->get('user_id');
+
+        if (empty($userId)) {
+            return $this->json([
+                'message' => 'Todo not found'
+            ], 404);
+        }
+
+        $todo = $this->todoRepository->getOwnTodoByID($userId, $id);
+        if (!$todo) {
+            return $this->json([
+                'message' => 'Todo not found'
+            ], 404);
+        }
+        return $this->json($todo, 200, [], ['groups' => 'user-todos']);
+    }
+
+    #[Route('/todos/{id}', name: 'app_todo_update', methods: ['PATCH'])]
+    public function updateTodoById(int $id, Request $request): JsonResponse
+    {
+        $userId = $request->cookies->get('user_id');
+        $todoBody = $request->getContent();
+
+        if (empty($userId)) {
+            return $this->json([
+                'message' => 'Todo not found'
+            ], 404);
+        }
+
+        $todo = $this->todoRepository->getOwnTodoByID($userId, $id);
+
+        if (!$todo) {
+            return $this->json([
+                'message' => 'Todo not found'
+            ], 404);
+        }
+        $this->serializer->deserialize(
+            $todoBody,
+            Todo::class,
+            'json',
+            [AbstractNormalizer::OBJECT_TO_POPULATE => $todo]
+
+        );
+
+        $this->entityManager->flush();
+
+
+        if (!$todo) {
+            return $this->json([
+                'message' => 'Todo not found'
+            ], 404);
+        }
+        return $this->json($todo, 200, [], ['groups' => 'user-todos']);
+    }
+
+    #[Route('/todos/{id}', name: 'app_todo_update', methods: "DELETE")]
+    public function deleteTodoByID(int $id, Request $request): JsonResponse
+    {
+        $userId = $request->cookies->get('user_id');
+
+        if (empty($userId)) {
+            return $this->json([
+                'message' => 'Todo not found'
+            ], 404);
+        }
+
+        $todo = $this->todoRepository->getOwnTodoByID($userId, $id);
+
+        if (!$todo) {
+            return $this->json([
+                'message' => 'Todo not found'
+            ], 404);
+        }
         
-        return $this->json([
-            'message' => 'Welcome to your new controller! he5a',
-            'todos_ids' => $resourceIds,
-            'todos_slugs' => $resourceSlugs,
-        ]);
-    } 
+        $this->entityManager->remove($todo);
 
-    #[Route('/{id}', name: 'app_todo_by_id')]
-    public function todoById(): JsonResponse
-    {
-        return $this->json([
-            'message' => 'Welcome to your new controller!',
-            'path' => 'src/Controller/TodoController.php',
-        ]);
+        $this->entityManager->flush();
+
+
+        if (!$todo) {
+            return $this->json([
+                'message' => 'Todo not found'
+            ], 404);
+        }
+        return $this->json($todo, 200, [], ['groups' => 'user-todos']);
     }
-
-    #[Route('/{slug}', name:'app_todo_by_slug')]
-    public function todoBySlug(): JsonResponse
-    {
-        return $this->json([
-            'message' => 'Welcome to your new controller!',
-            'path' => 'src/Controller/TodoController.php',
-        ]);
-    }
-
 }

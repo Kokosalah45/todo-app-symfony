@@ -4,32 +4,33 @@ namespace App\Entity;
 
 use App\Repository\TodoRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: TodoRepository::class)]
+#[ORM\Table(name: '`todo`')]
 class Todo
 {
-    /**
-     * Class constructor.
-     */
-    public function __construct()
-    {
-        $this->setStatus('in-progress');
-    }
-
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['todos-listing' , 'user-todos'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['todos-listing' , 'user-todos'])]
     private ?string $title = null;
 
-    #[ORM\Column(length: 255  , columnDefinition: "ENUM('completed', 'in-progress' , 'ended')" )]
-    private ?string $status = null;
+    #[ORM\Column(length: 255)]
+    #[Groups(['todos-listing' , 'user-todos'])]
 
-    #[ORM\ManyToOne(inversedBy: 'todos')]
+    private ?string $currentStatus = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'todos')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?USER $user_id = null;
+    private ?User $assignee = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
 
     public function getId(): ?int
     {
@@ -48,27 +49,29 @@ class Todo
         return $this;
     }
 
-    public function getStatus(): ?string
+    public function getCurrentStatus(): ?string
     {
-        return $this->status;
+        return $this->currentStatus;
     }
 
-    public function setStatus(string $status): static
+    public function setCurrentStatus(string $currentStatus): static
     {
-        $this->status = $status;
+        $this->currentStatus = $currentStatus;
 
         return $this;
     }
 
-    public function getUserId(): ?USER
+    public function getAssignee(): ?User
     {
-        return $this->user_id;
+        return $this->assignee;
     }
 
-    public function setUserId(?USER $user_id): static
+    public function setAssignee(?User $assignee): static
     {
-        $this->user_id = $user_id;
+        $this->assignee = $assignee;
 
         return $this;
     }
+
+
 }

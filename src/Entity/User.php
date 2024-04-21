@@ -20,15 +20,15 @@ class User
     private ?string $name = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $email = null;
+    private ?string $password = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $password = null;
+    private ?string $email = null;
 
     /**
      * @var Collection<int, Todo>
      */
-    #[ORM\OneToMany(targetEntity: Todo::class, mappedBy: 'user_id')]
+    #[ORM\OneToMany(targetEntity: Todo::class, mappedBy: 'assignee')]
     private Collection $todos;
 
     public function __construct()
@@ -53,18 +53,6 @@ class User
         return $this;
     }
 
-    public function getEmail(): ?string
-    {
-        return $this->email;
-    }
-
-    public function setEmail(string $email): static
-    {
-        $this->email = $email;
-
-        return $this;
-    }
-
     public function getPassword(): ?string
     {
         return $this->password;
@@ -73,6 +61,18 @@ class User
     public function setPassword(string $password): static
     {
         $this->password = $password;
+
+        return $this;
+    }
+
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+
+    public function setEmail(string $email): static
+    {
+        $this->email = $email;
 
         return $this;
     }
@@ -89,7 +89,7 @@ class User
     {
         if (!$this->todos->contains($todo)) {
             $this->todos->add($todo);
-            $todo->setUserId($this);
+            $todo->setAssignee($this);
         }
 
         return $this;
@@ -99,8 +99,8 @@ class User
     {
         if ($this->todos->removeElement($todo)) {
             // set the owning side to null (unless already changed)
-            if ($todo->getUserId() === $this) {
-                $todo->setUserId(null);
+            if ($todo->getAssignee() === $this) {
+                $todo->setAssignee(null);
             }
         }
 
